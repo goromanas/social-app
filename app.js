@@ -2,6 +2,8 @@ const express = require('express');
 const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
 const flash = require('connect-flash');
+const markdown = require('marked');
+const sanitizeHTML = require('sanitize-html');
 const app = express();
 
 let sessionOptions = session({
@@ -15,6 +17,28 @@ let sessionOptions = session({
 app.use(sessionOptions);
 
 app.use(flash());
+
+app.use(function(req, res, next) {
+    // make the markdown function available from ejs templates
+    res.locals.filterUserHTML = function(content) {
+        return sanitizeHTML(markdown(content), {allowedTags: ['p,', 'br', 'ul', 'ol', 'li', 'strong', 'bold', 'italic', 'h1', 'h2', 'h3'], allowedAttributes: []});
+    }
+
+     // make all error and success messages avaialable from all templates
+    res.locals.errors = req.flash('errors');
+    res.locals.success = req.flash('success');
+
+    //make current user id avaialble on the req object
+    if (req.session.user) {
+        req.visitorId = req.session.user._id
+    } else {
+        req.visitorId = 0;
+    }
+
+    //make user session data available from within view EJS templates
+    res.locals.user = req.session.user;
+    next();
+});
 
 const router = require('./router');
 
